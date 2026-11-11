@@ -104,7 +104,7 @@ ol.steps li > div { min-width: 0; display: flex; flex-direction: column; gap: 6p
 .cmd:hover { border-color: var(--accent); }
 .cmd:focus-visible, .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cmd.copied { background: var(--accent-soft); border-color: var(--accent); }
-.botname { font-weight: 600; color: var(--accent); white-space: nowrap; }
+.botname { font-weight: 600; color: var(--accent); overflow-wrap: anywhere; }
 .hint { font-size: 13.5px; color: var(--ink-2); }
 
 /* пример задачи */
@@ -180,7 +180,7 @@ footer { font-size: 13.5px; color: var(--ink-2); border-top: 1px solid var(--lin
     <ol class="steps">
       <li><div>
         <h3>Откройте бота в Telegram</h3>
-        <p>Найдите <span class="botname" id="botname">@ИМЯ_БОТА</span> и нажмите «Запустить».</p>
+        <p>Найдите <a class="botname" id="botname" href="https://t.me/test_task_izmailov_bot">@test_task_izmailov_bot</a> и нажмите «Запустить».</p>
       </div></li>
       <li><div>
         <h3>Станьте «новым сотрудником»</h3>
