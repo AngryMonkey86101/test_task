@@ -173,7 +173,7 @@ def test_telegram_app_builds():
     from novichok import bot
 
     app = bot.build_app("123456:TEST-TOKEN")
-    assert app.job_queue is not None and len(app.handlers[0]) == 6
+    assert app.job_queue is not None and len(app.handlers[0]) == 7
 
 
 def _deepseek(handler):

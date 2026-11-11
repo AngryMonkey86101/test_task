@@ -33,6 +33,8 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 # Чаты HR, куда бот дублирует сигналы риска (через запятую). В демо-режиме
 # копия всегда приходит и самому тестировщику.
 HR_CHAT_IDS = [int(x) for x in os.environ.get("HR_CHAT_IDS", "").split(",") if x.strip()]
+# Прокси для Telegram (http://... или socks5://...), если api.telegram.org с сервера недоступен.
+TELEGRAM_PROXY = os.environ.get("TELEGRAM_PROXY", "")
 # Как часто бот проверяет, кому пора отправить опрос (секунды).
 TICK_SECONDS = int(os.environ.get("TICK_SECONDS", "3600"))
 

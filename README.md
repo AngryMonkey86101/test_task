@@ -72,6 +72,42 @@ python -m novichok ask "когда зарплата?"
 python -m novichok dashboard
 ```
 
+## Размещение на VPS
+
+Подойдёт любой VPS на Ubuntu 22.04+ или Debian 12+: 1 vCPU и 1 ГБ памяти достаточно. Бот работает через long polling, поэтому домен, HTTPS и открытые порты не нужны.
+
+Подключиться к серверу и установить:
+
+```bash
+ssh root@IP_СЕРВЕРА
+```
+
+```bash
+git clone -b claude/trusting-bohr-mjj3sn https://github.com/AngryMonkey86101/test_task.git /opt/novichok
+```
+
+```bash
+sudo bash /opt/novichok/deploy/install.sh
+```
+
+Скрипт:
+- ставит Python-окружение и зависимости;
+- спрашивает токен бота и ключ DeepSeek (ввод скрыт) и сохраняет их в `/opt/novichok/.env` с правами только для владельца;
+- генерирует демо-данные;
+- запускает бота как службу `novichok`, которая перезапускается сама, в том числе после перезагрузки сервера.
+
+Время на сервере для бота — московское: опросы уходят с 10:00 до 20:00 по Москве.
+
+| Действие | Команда |
+|---|---|
+| Логи | `journalctl -u novichok -f` |
+| Перезапуск (например, после правки `.env`) | `systemctl restart novichok` |
+| Обновить до свежей версии из git | `sudo bash /opt/novichok/deploy/update.sh` |
+
+Если сервер в России и `api.telegram.org` с него недоступен, скрипт предупредит. Тогда добавьте в `.env` прокси, например `TELEGRAM_PROXY=socks5://user:pass@host:port`, или возьмите VPS за рубежом.
+
+Дашборд можно получить прямо в Telegram командой `/report`: бот пришлёт HTML-файл. Если задан `HR_CHAT_IDS`, команда доступна только этим чатам.
+
 ## Настройки (`.env`)
 
 | Переменная | Что делает |
@@ -82,6 +118,7 @@ python -m novichok dashboard
 | `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL` | Альтернатива — Claude (по умолчанию `claude-opus-5-5`). Если заданы оба ключа, используется DeepSeek. Выбрать явно: `LLM_PROVIDER=deepseek`, `claude` или `none`. |
 | `BITRIX_WEBHOOK_URL` | Входящий вебхук Битрикс24 (право «Задачи»). Если задан, задачи создаются по-настоящему через `tasks.task.add`. Без него — имитация в таблице `bitrix_outbox`, она видна в дашборде. |
 | `HR_CHAT_IDS` | Telegram chat_id сотрудников HR, через запятую. Им дублируются сигналы. Свой id покажет команда `/myid`. |
+| `TELEGRAM_PROXY` | Прокси для Telegram (`http://…` или `socks5://…`), если `api.telegram.org` недоступен с сервера. |
 | `TICK_SECONDS` | Как часто бот проверяет, кому отправить опрос. По умолчанию раз в час, опросы уходят только с 10:00 до 20:00. |
 
 ## Устройство

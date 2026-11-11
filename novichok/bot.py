@@ -13,7 +13,7 @@ from telegram.constants import ParseMode
 from telegram.ext import (Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler,
                           filters)
 
-from . import config, db
+from . import config, dashboard, db
 from .engine import MENU, Engine, Out
 
 log = logging.getLogger("novichok.bot")
@@ -37,7 +37,10 @@ async def send(app: Application, msgs: list[Out]) -> None:
 def build_app(token: str) -> Application:
     conn = db.connect(config.DB_PATH)
     engine = Engine(conn)
-    app = Application.builder().token(token).build()
+    builder = Application.builder().token(token)
+    if config.TELEGRAM_PROXY:  # если с сервера api.telegram.org недоступен напрямую
+        builder = builder.proxy(config.TELEGRAM_PROXY).get_updates_proxy(config.TELEGRAM_PROXY)
+    app = builder.build()
 
     async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await send(ctx.application, engine.on_start(update.effective_chat.id, " ".join(ctx.args or [])))
@@ -51,6 +54,16 @@ def build_app(token: str) -> Application:
 
     async def myid(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"chat_id: {update.effective_chat.id} — его можно указать в HR_CHAT_IDS")
+
+    async def report(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        chat_id = update.effective_chat.id
+        if config.HR_CHAT_IDS and chat_id not in config.HR_CHAT_IDS:
+            await update.message.reply_text("Дашборд доступен только сотрудникам HR.")
+            return
+        path = await asyncio.to_thread(dashboard.build, conn)
+        with open(path, "rb") as f:
+            await ctx.bot.send_document(chat_id, f, filename="dashboard.html",
+                                        caption="Дашборд «Новичок» — откройте файл в браузере.")
 
     async def text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         # ответ ИИ может занять пару секунд — не блокируем остальных пользователей
@@ -74,6 +87,7 @@ def build_app(token: str) -> Application:
             BotCommand("start", "Начать / ввести код"),
             BotCommand("demo", "Демо-режим для проверки"),
             BotCommand("day", "Демо: перемотать на N-й день, например /day 7"),
+            BotCommand("report", "Дашборд для HR (HTML-файл)"),
         ])
 
     app.post_init = post_init
@@ -81,6 +95,7 @@ def build_app(token: str) -> Application:
     app.add_handler(CommandHandler("demo", demo))
     app.add_handler(CommandHandler("day", day))
     app.add_handler(CommandHandler("myid", myid))
+    app.add_handler(CommandHandler("report", report))
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text))
     app.job_queue.run_repeating(tick, interval=config.TICK_SECONDS, first=10)
