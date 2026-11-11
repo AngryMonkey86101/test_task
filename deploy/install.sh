@@ -3,8 +3,10 @@
 # Запуск из папки с проектом:  sudo bash deploy/install.sh
 # Повторный запуск безопасен: обновит зависимости и перезапустит службу, .env не трогает.
 set -euo pipefail
+trap 'echo; echo "[x] Установка остановилась на строке $LINENO (команда: $BASH_COMMAND)."' ERR
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$APP_DIR"   # python -m novichok ищет пакет в текущей папке
 SERVICE=novichok
 APP_USER=novichok
 TZ_NAME="${TZ_NAME:-Europe/Moscow}"
