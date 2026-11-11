@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Бот «Новичок»</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: одна колонка-инструкция ~720px; шкала 90 дней как сквозной мотив. */
+:root {
+  --bg: #f6f8f7;
+  --surface: #ffffff;
+  --ink: #142320;
+  --ink-2: #4a5b57;
+  --line: #dde5e2;
+  --accent: #0f7a5c;
+  --accent-soft: #e3f2ec;
+  --chip: #eef3f1;
+  --red: #c93b36; --red-soft: #fbe9e8;
+  --yellow: #b7790a; --yellow-soft: #fbf1dc;
+  --green: #18884a; --green-soft: #e4f4ea;
+  --grey-soft: #eceeed;
+  --font-display: "Onest", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1514; --surface: #172120; --ink: #e8efec; --ink-2: #a5b5b0; --line: #26332f;
+  --accent: #4cc39a; --accent-soft: #163a2f; --chip: #1f2b28;
+  --red: #f0716b; --red-soft: #3a1f1e; --yellow: #e5b04a; --yellow-soft: #352a14;
+  --green: #5cc98a; --green-soft: #17311f; --grey-soft: #222b29; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0f1514; --surface: #172120; --ink: #e8efec; --ink-2: #a5b5b0; --line: #26332f;
+  --accent: #4cc39a; --accent-soft: #163a2f; --chip: #1f2b28;
+  --red: #f0716b; --red-soft: #3a1f1e; --yellow: #e5b04a; --yellow-soft: #352a14;
+  --green: #5cc98a; --green-soft: #17311f; --grey-soft: #222b29; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 16px/1.6 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+}
+main { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 44px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(30px, 6vw, 42px); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 23px; font-weight: 650; margin-bottom: 14px; }
+h3 { font-size: 16.5px; font-weight: 600; }
+p { margin: 0; }
+.eyebrow { font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: 10px; }
+.lead { font-size: 18px; color: var(--ink-2); margin-top: 14px; max-width: 62ch; }
+.muted { color: var(--ink-2); }
+.note {
+  margin-top: 18px; padding: 12px 14px; border-radius: 10px;
+  background: var(--yellow-soft); color: var(--ink); font-size: 14.5px;
+}
+section > p + p { margin-top: 10px; }
+
+/* три роли */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.role { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.role .who { font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+.role p { font-size: 15px; }
+
+/* шкала 90 дней */
+.track { position: relative; display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.track::before { content: ""; position: absolute; left: 22px; right: 22px; top: 21px; height: 2px; background: var(--line); }
+.cp { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; min-width: 0; }
+.cp .day {
+  width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--accent); color: var(--surface); font-family: var(--font-display); font-weight: 700; font-size: 16px;
+  box-shadow: 0 0 0 4px var(--bg);
+}
+.cp .q { font-size: 13px; color: var(--ink-2); line-height: 1.35; }
+@media (max-width: 560px) {
+  .track { grid-template-columns: 1fr; gap: 10px; }
+  .track::before { left: 21px; right: auto; top: 22px; bottom: 22px; width: 2px; height: auto; }
+  .cp { flex-direction: row; text-align: left; gap: 14px; }
+  .cp .q { font-size: 14px; }
+}
+
+/* шаги */
+ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; counter-reset: step; }
+ol.steps li {
+  counter-increment: step; display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: start;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+}
+ol.steps li::before {
+  content: counter(step); width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); font-family: var(--font-display); font-weight: 700;
+}
+ol.steps li > div { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.cmds { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmd {
+  font: 500 14px var(--font-mono); background: var(--chip); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px; cursor: pointer;
+}
+.cmd:hover { border-color: var(--accent); }
+.cmd:focus-visible, .copy:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cmd.copied { background: var(--accent-soft); border-color: var(--accent); }
+.botname { font-weight: 600; color: var(--accent); white-space: nowrap; }
+.hint { font-size: 13.5px; color: var(--ink-2); }
+
+/* пример задачи */
+.task { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--red); border-radius: 12px; padding: 16px 18px; font-size: 14.5px; display: flex; flex-direction: column; gap: 10px; }
+.task .t-title { font-weight: 600; font-size: 15.5px; }
+.task .meta { font-size: 13px; color: var(--ink-2); }
+.task ul { margin: 0; padding-left: 18px; }
+.task .label { font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+
+/* таблица команд */
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+td { padding: 11px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { white-space: nowrap; width: 1%; }
+
+/* статусы */
+.statuses { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; font-size: 14px; }
+.pill i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.p-red { background: var(--red-soft); } .p-red i { background: var(--red); }
+.p-yellow { background: var(--yellow-soft); } .p-yellow i { background: var(--yellow); }
+.p-green { background: var(--green-soft); } .p-green i { background: var(--green); }
+.p-grey { background: var(--grey-soft); } .p-grey i { background: var(--ink-2); }
+ul.plain { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+footer { font-size: 13.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 16px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<main>
+  <header>
+    <div class="eyebrow">Инструкция для HR</div>
+    <h1>Бот «Новичок»: помощник в первые 90 дней</h1>
+    <p class="lead">Каждый третий из ушедших сотрудников не дорабатывает до трёх месяцев. Бот в Telegram помогает заметить проблему у новичка раньше, чем он напишет заявление.</p>
+    <p class="note">Это демо-версия. Все сотрудники, руководители и данные вымышленные. Задачи в Битрикс24 пока имитируются: их копия приходит прямо в чат с ботом.</p>
+  </header>
+
+  <section>
+    <h2>Что делает бот</h2>
+    <div class="roles">
+      <div class="role">
+        <span class="who">Новичку</span>
+        <p>Отвечает на вопросы о зарплате, графике, больничном, кассе. Показывает план первых трёх месяцев. Даёт кнопку «Нужна помощь» для связи с HR.</p>
+      </div>
+      <div class="role">
+        <span class="who">Руководителю</span>
+        <p>Если новичок ответил тревожно или молчит, ставит задачу «поговорить» с подсказкой, о чём говорить. Если проблема в самом руководителе, задача уходит в HR.</p>
+      </div>
+      <div class="role">
+        <span class="who">HR</span>
+        <p>Собирает дашборд: где, когда и почему уходят новички и кому из текущих новичков нужен разговор прямо сейчас.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Когда бот задаёт вопросы</h2>
+    <p class="muted" style="margin-bottom:20px">Шесть раз за испытательный срок, по два вопроса с кнопками. Это около 10 секунд.</p>
+    <div class="track" aria-label="Контрольные точки опросов">
+      <div class="cp"><span class="day">3</span><span class="q">Объяснили, что делать? Есть к кому обратиться?</span></div>
+      <div class="cp"><span class="day">7</span><span class="q">Как неделя? Совпало ли с обещанным?</span></div>
+      <div class="cp"><span class="day">14</span><span class="q">Понятны критерии? Как с руководителем?</span></div>
+      <div class="cp"><span class="day">30</span><span class="q">Зарплата как ожидал? Нагрузка?</span></div>
+      <div class="cp"><span class="day">60</span><span class="q">Своё в команде? Мысли уйти?</span></div>
+      <div class="cp"><span class="day">90</span><span class="q">Остаёшься? Посоветуешь знакомым?</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Как попробовать за 5 минут</h2>
+    <ol class="steps">
+      <li><div>
+        <h3>Откройте бота в Telegram</h3>
+        <p>Найдите <span class="botname" id="botname">@ИМЯ_БОТА</span> и нажмите «Запустить».</p>
+      </div></li>
+      <li><div>
+        <h3>Станьте «новым сотрудником»</h3>
+        <div class="cmds"><button class="cmd" type="button">/demo</button></div>
+        <p class="hint">Выберите подразделение: склад, магазин, отдел продаж или офис.</p>
+      </div></li>
+      <li><div>
+        <h3>Перематывайте время</h3>
+        <div class="cmds">
+          <button class="cmd" type="button">/day 3</button><button class="cmd" type="button">/day 7</button>
+          <button class="cmd" type="button">/day 14</button><button class="cmd" type="button">/day 30</button>
+          <button class="cmd" type="button">/day 60</button><button class="cmd" type="button">/day 90</button>
+        </div>
+        <p class="hint">На каждый день придут вопросы. Отвечайте по-разному: один раз «всё хорошо», другой — «Тяжело» или «Нет».</p>
+      </div></li>
+      <li><div>
+        <h3>Посмотрите, что получит руководитель</h3>
+        <p>На тревожный ответ в чат придёт копия задачи из Битрикс24. Пример ниже.</p>
+      </div></li>
+      <li><div>
+        <h3>Задайте вопрос своими словами</h3>
+        <div class="cmds">
+          <button class="cmd" type="button">когда зарплата?</button>
+          <button class="cmd" type="button">я заболел, что делать?</button>
+          <button class="cmd" type="button">как оформить возврат без чека?</button>
+        </div>
+        <p class="hint">Если ответа в базе знаний нет, бот честно скажет об этом и передаст вопрос в HR.</p>
+      </div></li>
+      <li><div>
+        <h3>Попросите помощи</h3>
+        <p>Кнопка «🆘 Нужна помощь» — так новичок напрямую обращается в HR. Руководитель это сообщение не видит.</p>
+      </div></li>
+      <li><div>
+        <h3>Откройте дашборд</h3>
+        <div class="cmds"><button class="cmd" type="button">/report</button></div>
+        <p class="hint">Бот пришлёт файл dashboard.html. Откройте его в браузере на компьютере или телефоне.</p>
+      </div></li>
+    </ol>
+    <p class="hint" style="margin-top:10px">Нажмите на команду, чтобы скопировать её.</p>
+  </section>
+
+  <section>
+    <h2>Пример задачи для руководителя</h2>
+    <div class="task">
+      <div>
+        <div class="t-title">Новичок: поговорить с Семёновым Иваном — ожидания ≠ реальность</div>
+        <div class="meta">Ответственный: руководитель магазина · срок: 1 рабочий день</div>
+      </div>
+      <div>
+        <div class="label">Что ответил сотрудник на 7-й день</div>
+        <ul>
+          <li>Как прошла первая неделя? — Нормально</li>
+          <li>График и обязанности совпадают с обещанным на собеседовании? — <b>Нет</b></li>
+        </ul>
+      </div>
+      <div>
+        <div class="label">О чём поговорить</div>
+        <p>Сверьте, что обещали на собеседовании (график, задачи, деньги) и что по факту. Расхождение — главная причина уходов в первые две недели.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Команды и кнопки</h2>
+    <div class="tablewrap"><table>
+      <tr><td><code>/demo</code></td><td>Начать демо заново</td></tr>
+      <tr><td><code>/day N</code></td><td>Перейти на N-й день работы</td></tr>
+      <tr><td><code>/report</code></td><td>Получить дашборд для HR</td></tr>
+      <tr><td>🗓 Мой план</td><td>Даты первых трёх месяцев: встречи, аванс, первая зарплата, конец испытательного срока</td></tr>
+      <tr><td>📇 Контакты</td><td>Руководитель, наставник, HR, бухгалтерия</td></tr>
+      <tr><td>🆘 Нужна помощь</td><td>Сообщение напрямую в HR</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Что смотреть на дашборде</h2>
+    <p class="muted">Радар показывает каждого текущего новичка с одним из статусов:</p>
+    <div class="statuses">
+      <span class="pill p-red"><i></i>Нужен разговор</span>
+      <span class="pill p-yellow"><i></i>Присмотреться</span>
+      <span class="pill p-green"><i></i>Всё в порядке</span>
+      <span class="pill p-grey"><i></i>Не подключён к боту</span>
+    </div>
+    <ul class="plain">
+      <li><b>Где теряем:</b> доля ушедших до 90 дней по руководителям, источникам найма, наличию наставника и подразделениям.</li>
+      <li><b>Когда уходят:</b> по неделям работы. Пики — первые две недели и после первой зарплаты.</li>
+      <li><b>Почему уходят:</b> причины ранних уходов в сравнении с поздними.</li>
+      <li><b>Вопросы без ответа:</b> что стоит дописать в регламенты для новичков.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Ответы новичков видит только HR, они не влияют на оценку испытательного срока. Бот сообщает об этом новичку при первом запуске.
+  </footer>
+</main>
+
+<script>
+document.querySelectorAll('.cmd').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var text = btn.textContent.trim();
+    var done = function () {
+      btn.classList.add('copied');
+      setTimeout(function () { btn.classList.remove('copied'); }, 1200);
+    };
+    try {
+      navigator.clipboard.writeText(text).then(done, function () { select(btn); });
+    } catch (e) { select(btn); }
+  });
+});
+function select(el) {
+  var r = document.createRange(); r.selectNodeContents(el);
+  var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+}
+</script>
+
+</body>
+</html>
