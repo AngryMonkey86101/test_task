@@ -164,7 +164,7 @@ def test_llm_failure_falls_back_to_kb():
                 def create(**kw):
                     raise RuntimeError("нет сети")
 
-    a = Assistant(use_llm=True)
+    a = Assistant(use_llm=True, provider="claude")
     a._client = Broken()
     assert a.answer("когда зп?").article_id == "salary"
 
@@ -174,3 +174,37 @@ def test_telegram_app_builds():
 
     app = bot.build_app("123456:TEST-TOKEN")
     assert app.job_queue is not None and len(app.handlers[0]) == 6
+
+
+def _deepseek(handler):
+    import httpx
+
+    a = Assistant(use_llm=True, provider="deepseek")
+    a._client = httpx.Client(base_url="https://api.deepseek.com", transport=httpx.MockTransport(handler))
+    return a
+
+
+def test_deepseek_answer_uses_kb_context():
+    import httpx
+
+    seen = {}
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen.update(path=request.url.path, body=body)
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant",
+                                                                  "content": "Аванс приходит 25-го числа."}}]})
+
+    ans = _deepseek(handler).answer("когда зп?")
+    assert ans.found and ans.text == "Аванс приходит 25-го числа." and ans.article_id == "salary"
+    assert seen["path"] == "/chat/completions" and seen["body"]["messages"][0]["role"] == "system"
+    assert "Зарплата и аванс" in seen["body"]["messages"][1]["content"]
+
+
+def test_deepseek_no_answer_and_errors():
+    import httpx
+
+    no = _deepseek(lambda r: httpx.Response(200, json={"choices": [{"message": {"content": "НЕТ_ОТВЕТА"}}]}))
+    assert not no.answer("есть ли ипотека").found
+    broke = _deepseek(lambda r: httpx.Response(402, json={"error": {"message": "Insufficient Balance"}}))
+    assert broke.answer("когда зп?").article_id == "salary"   # без денег на балансе — ответ из базы знаний

@@ -4,6 +4,7 @@
   dashboard  пересобрать дашборд reports/dashboard.html из текущей базы
   chat       поговорить с ботом в терминале (без Telegram)
   bot        запустить Telegram-бота (нужен TELEGRAM_BOT_TOKEN)
+  ask        проверить ИИ-помощника: python -m novichok ask "когда зарплата?"
 """
 from __future__ import annotations
 
@@ -31,7 +32,8 @@ def setup(today: date) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(prog="python -m novichok", description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=["setup", "dashboard", "chat", "bot"])
+    ap.add_argument("command", choices=["setup", "dashboard", "chat", "bot", "ask"])
+    ap.add_argument("question", nargs="*", help="вопрос для команды ask")
     ap.add_argument("--today", default=date.today().isoformat(), help="«сегодня» для генерации данных")
     args = ap.parse_args()
 
@@ -40,6 +42,17 @@ def main() -> None:
     if args.command == "setup" or (args.command in ("chat", "bot") and not config.DB_PATH.exists()):
         setup(date.fromisoformat(args.today))
     if args.command == "setup":
+        return
+    if args.command == "ask":
+        import logging
+
+        from .assistant import Assistant
+
+        logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
+        q = " ".join(args.question) or "Когда придёт зарплата?"
+        print(f"ИИ: {config.LLM_PROVIDER}\nВопрос: {q}\n")
+        ans = Assistant().answer(q)
+        print(ans.text if ans.found else "Ответа нет — бот передал бы вопрос в HR.")
         return
     if args.command == "dashboard":
         from . import dashboard, db

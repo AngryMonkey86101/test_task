@@ -2,8 +2,8 @@
 
 1. Поиск: BM25 по статьям с упрощённым стеммингом для русского языка.
    Поле «ключи» каждой статьи содержит разговорные синонимы («зп», «получка»).
-2. Ответ: если задан ANTHROPIC_API_KEY — Claude формулирует короткий ответ
-   строго по найденным статьям; иначе бот отдаёт саму статью.
+2. Ответ: если задан DEEPSEEK_API_KEY (или ANTHROPIC_API_KEY) — модель формулирует
+   короткий ответ строго по найденным статьям; иначе бот отдаёт саму статью.
 3. Нет ответа → вопрос сохраняется как «пробел в базе знаний» и уходит в HR.
 """
 from __future__ import annotations
@@ -119,9 +119,11 @@ NO_ANSWER = "НЕТ_ОТВЕТА"
 
 
 class Assistant:
-    def __init__(self, kb: KnowledgeBase | None = None, use_llm: bool | None = None):
+    def __init__(self, kb: KnowledgeBase | None = None, use_llm: bool | None = None,
+                 provider: str | None = None):
         self.kb = kb or KnowledgeBase(load_articles())
         self.use_llm = config.USE_LLM if use_llm is None else use_llm
+        self.provider = provider or (config.LLM_PROVIDER if config.LLM_PROVIDER != "none" else "deepseek")
         self._client = None
 
     def answer(self, question: str) -> Answer:
@@ -131,18 +133,47 @@ class Assistant:
             try:
                 return self._llm_answer(question, [a for s, a in hits if s > 0.5] or [a for _, a in hits])
             except Exception as exc:  # сеть, лимиты, отказ модели — отвечаем без ИИ
-                log.warning("Claude недоступен, отвечаю из базы знаний: %s", exc)
+                log.warning("ИИ (%s) недоступен, отвечаю из базы знаний: %s", self.provider, exc)
         if best is None or best_score < self.kb.THRESHOLD:
             return Answer("", None, False)
         return Answer(f"📄 <b>{best.title}</b>\n\n{best.body}", best.id, True)
 
     def _llm_answer(self, question: str, articles: list[Article]) -> Answer:
+        context = "\n\n".join(f"<статья id=\"{a.id}\" название=\"{a.title}\">\n{a.body}\n</статья>"
+                              for a in articles)
+        prompt = f"{context}\n\nВопрос сотрудника: {question}"
+        text = self._ask_deepseek(prompt) if self.provider == "deepseek" else self._ask_claude(prompt)
+        if not text or NO_ANSWER in text:
+            return Answer("", None, False)
+        return Answer(text, articles[0].id if articles else None, True)
+
+    def _ask_deepseek(self, prompt: str) -> str:
+        """DeepSeek: OpenAI-совместимый эндпоинт /chat/completions."""
+        import httpx
+
+        if self._client is None:
+            self._client = httpx.Client(
+                base_url=config.DEEPSEEK_BASE_URL, timeout=30,
+                headers={"Authorization": f"Bearer {config.DEEPSEEK_API_KEY}"})
+        r = self._client.post("/chat/completions", json={
+            "model": config.DEEPSEEK_MODEL,
+            "messages": [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
+            "temperature": 0.3,
+            "max_tokens": 600,
+            "stream": False,
+        })
+        if r.status_code == 401:
+            raise RuntimeError("DeepSeek: неверный API-ключ (401)")
+        if r.status_code == 402:
+            raise RuntimeError("DeepSeek: на балансе нет средств (402)")
+        r.raise_for_status()
+        return (r.json()["choices"][0]["message"].get("content") or "").strip()
+
+    def _ask_claude(self, prompt: str) -> str:
         import anthropic
 
         if self._client is None:
             self._client = anthropic.Anthropic()
-        context = "\n\n".join(f"<статья id=\"{a.id}\" название=\"{a.title}\">\n{a.body}\n</статья>"
-                              for a in articles)
         response = self._client.beta.messages.create(
             model=config.ANTHROPIC_MODEL,
             max_tokens=2000,
@@ -150,11 +181,8 @@ class Assistant:
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
             system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": f"{context}\n\nВопрос сотрудника: {question}"}],
+            messages=[{"role": "user", "content": prompt}],
         )
         if response.stop_reason == "refusal":
             raise RuntimeError("модель отказалась отвечать")
-        text = "".join(b.text for b in response.content if b.type == "text").strip()
-        if not text or NO_ANSWER in text:
-            return Answer("", None, False)
-        return Answer(text, articles[0].id if articles else None, True)
+        return "".join(b.text for b in response.content if b.type == "text").strip()

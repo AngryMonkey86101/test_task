@@ -43,10 +43,18 @@ HR_BITRIX_ID = 3
 HR_NAME = "Смирнова Ольга (HR)"
 HR_PHONE = "+7 900 000-00-03"
 
-# ИИ-помощник: если есть ключ Anthropic — ответ формулирует Claude по найденным
-# статьям, иначе отдаётся сама статья из базы знаний.
+# ИИ-помощник: если задан ключ DeepSeek или Anthropic — ответ формулирует модель
+# по найденным статьям, иначе бот отдаёт саму статью из базы знаний.
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
+DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-chat")
 ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-opus-5-5")
-USE_LLM = bool(os.environ.get("ANTHROPIC_API_KEY")) and os.environ.get("NOVICHOK_NO_LLM") != "1"
+# Какой ИИ использовать: deepseek / claude / none. По умолчанию — по наличию ключа (DeepSeek в приоритете).
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "").lower() or (
+    "deepseek" if DEEPSEEK_API_KEY else "claude" if os.environ.get("ANTHROPIC_API_KEY") else "none")
+if os.environ.get("NOVICHOK_NO_LLM") == "1":
+    LLM_PROVIDER = "none"
+USE_LLM = LLM_PROVIDER in ("deepseek", "claude")
 
 # Сколько стоит компании один ранний уход (найм + обучение + недоработка), ₽.
 # Оценка для отчёта, HR может поменять на свои цифры.

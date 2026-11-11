@@ -93,7 +93,9 @@ def main() -> None:
     if not config.TELEGRAM_TOKEN:
         raise SystemExit("Нужен TELEGRAM_BOT_TOKEN (получить у @BotFather). Без Telegram можно попробовать "
                          "бота в терминале: python -m novichok chat")
-    log.info("ИИ-ответы через Claude: %s", "включены" if config.USE_LLM else "выключены (ответы из базы знаний)")
+    log.info("ИИ-помощник: %s", {"deepseek": f"DeepSeek ({config.DEEPSEEK_MODEL})",
+                                 "claude": f"Claude ({config.ANTHROPIC_MODEL})"}.get(
+        config.LLM_PROVIDER, "выключен — ответы статьями из базы знаний"))
     log.info("Битрикс24: %s", "вебхук" if config.BITRIX_WEBHOOK_URL else "имитация (таблица bitrix_outbox)")
     build_app(config.TELEGRAM_TOKEN).run_polling(allowed_updates=Update.ALL_TYPES)
 
